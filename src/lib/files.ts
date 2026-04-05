@@ -94,7 +94,8 @@ export function validateAudioFile(file: Blob): { valid: boolean; error?: string 
   const MAX_SIZE = 25 * 1024 * 1024; // 25MB
   const ALLOWED_TYPES = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/wav'];
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  const baseType = file.type.split(';')[0];
+  if (!ALLOWED_TYPES.includes(baseType)) {
     return { valid: false, error: 'Unsupported audio format.' };
   }
 
