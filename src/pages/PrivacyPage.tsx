@@ -1,14 +1,17 @@
+import { Link } from 'react-router-dom';
 import { FileText } from 'lucide-react';
 
 export function PrivacyPage() {
   return (
     <div className="min-h-dvh bg-surface">
-      <header className="bg-navy px-6 py-4 flex items-center gap-2">
-        <FileText className="h-5 w-5 text-shield-mid" />
-        <span className="font-bold text-base text-white tracking-tight">
-          Repair<span className="text-shield-mid">Letter</span>
-        </span>
-      </header>
+      <header className="bg-navy px-6 py-4">
+  <Link to="/" className="flex items-center gap-2">
+    <FileText className="h-5 w-5 text-shield-mid" />
+    <span className="font-bold text-base text-white tracking-tight">
+      Repair<span className="text-shield-mid">Letter</span>
+    </span>
+  </Link>
+</header>
 
       <div className="max-w-2xl mx-auto px-6 py-10">
         <h1 className="text-2xl font-bold text-navy mb-2">Privacy Policy</h1>
