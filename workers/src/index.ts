@@ -7,6 +7,9 @@ import { analyseRoutes } from './routes/analyse';
 import { voiceRoutes } from './routes/voice';
 import { letterRoutes } from './routes/letter';
 import { stripeRoutes } from './routes/stripe';
+import { usersRoutes } from './routes/users';
+import { translateRoutes } from './routes/translate';
+import { evidencePackRoutes } from './routes/evidence-pack';
 import { authMiddleware } from './middleware/auth';
 import { handleScheduled } from './cron/escalation';
 
@@ -39,7 +42,6 @@ const app = new Hono<{ Bindings: Env }>();
 
 // ── Global middleware ───────────────────────────────────────
 
-// CORS — locked to production domain + localhost for dev
 app.use(
   '/api/*',
   cors({
@@ -48,7 +50,6 @@ app.use(
         'https://rentshield.co.uk',
         'https://www.rentshield.co.uk',
       ];
-      // Allow localhost in development only
       if (origin?.startsWith('http://localhost:')) {
         return origin;
       }
@@ -60,13 +61,16 @@ app.use(
   })
 );
 
-// Body size limits — prevent oversized payloads
-app.use('/api/*', bodyLimit({ maxSize: 15 * 1024 * 1024 })); // 15MB max (photos up to 10MB + overhead)
+// Body size limits
+app.use('/api/*', bodyLimit({ maxSize: 15 * 1024 * 1024 }));
 
-// Auth on all /api routes except Stripe webhooks
+// Auth — exempt webhook endpoints (they use their own signature verification)
 app.use('/api/*', async (c, next) => {
-  // Stripe webhook has its own signature verification
-  if (c.req.path === '/api/stripe/webhook') {
+  const exemptPaths = [
+    '/api/stripe/webhook',
+    '/api/users/webhook',
+  ];
+  if (exemptPaths.includes(c.req.path)) {
     return next();
   }
   return authMiddleware(c, next);
@@ -83,7 +87,10 @@ app.route('/api', uploadRoutes);
 app.route('/api', analyseRoutes);
 app.route('/api', voiceRoutes);
 app.route('/api', letterRoutes);
+app.route('/api', translateRoutes);
+app.route('/api', evidencePackRoutes);
 app.route('/api/stripe', stripeRoutes);
+app.route('/api/users', usersRoutes);
 
 // ── 404 ─────────────────────────────────────────────────────
 
@@ -93,7 +100,6 @@ app.notFound((c) => c.json({ error: 'Not found' }, 404));
 
 app.onError((err, c) => {
   console.error('Unhandled error:', err);
-  // Never expose internal error details to client
   return c.json({ error: 'Internal server error' }, 500);
 });
 
