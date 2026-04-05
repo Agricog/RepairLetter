@@ -1,17 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import {
   SignedIn,
   SignedOut,
   RedirectToSignIn,
   useAuth,
+  useUser,
 } from '@clerk/clerk-react';
 import { api } from './lib/api';
+import { setSentryUser, clearSentryUser } from './lib/sentry';
+import { setPhotoTokenGetter } from './hooks/useEvidencePhotos';
 import { AppLayout } from './components/layout/AppLayout';
+import { ConsentModal } from './components/ui/ConsentModal';
 import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ReportPage } from './pages/ReportPage';
 import { CaseDetailPage } from './pages/CaseDetailPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsPage } from './pages/TermsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
@@ -25,33 +31,85 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function App() {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
+  const { user } = useUser();
+  const [consentGiven, setConsentGiven] = useState<boolean | null>(null);
+  const [checkingConsent, setCheckingConsent] = useState(true);
 
-  // Wire Clerk auth token into API client
+  // Wire Clerk auth token into API client and photo loader
   useEffect(() => {
-    api.setAuthTokenGetter(async () => getToken());
+    const tokenGetter = async () => getToken();
+    api.setAuthTokenGetter(tokenGetter);
+    setPhotoTokenGetter(tokenGetter);
   }, [getToken]);
 
-  return (
-    <Routes>
-      {/* Public */}
-      <Route path="/" element={<LandingPage />} />
+  // Set Sentry user context
+  useEffect(() => {
+    if (isSignedIn && user?.id) {
+      setSentryUser(user.id);
+    } else {
+      clearSentryUser();
+    }
+  }, [isSignedIn, user?.id]);
 
-      {/* Protected */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
+  // Check if user has given consent
+  useEffect(() => {
+    if (!isSignedIn) {
+      setCheckingConsent(false);
+      return;
+    }
+
+    async function checkConsent() {
+      try {
+        const res = await api.get<{ consented: boolean }>('/api/users/consent');
+        if (res.success && res.data) {
+          setConsentGiven(res.data.consented);
+        } else {
+          // If endpoint fails, assume first-time user
+          setConsentGiven(false);
         }
-      >
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/report" element={<ReportPage />} />
-        <Route path="/case/:caseId" element={<CaseDetailPage />} />
-      </Route>
+      } catch {
+        setConsentGiven(false);
+      }
+      setCheckingConsent(false);
+    }
 
-      {/* Catch-all — prevents route enumeration */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    checkConsent();
+  }, [isSignedIn]);
+
+  const handleConsentAccepted = () => {
+    setConsentGiven(true);
+  };
+
+  return (
+    <>
+      {/* Consent modal — shown after auth, before app access */}
+      {isSignedIn && !checkingConsent && consentGiven === false && (
+        <ConsentModal onAccept={handleConsentAccepted} />
+      )}
+
+      <Routes>
+        {/* Public pages */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+
+        {/* Protected pages */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/report" element={<ReportPage />} />
+          <Route path="/case/:caseId" element={<CaseDetailPage />} />
+        </Route>
+
+        {/* Catch-all — prevents route enumeration */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
