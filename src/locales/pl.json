@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "RentShield",
-    "tagline": "Chroń Swój Dom"
+    "name": "RepairLetter",
+    "tagline": "Twój List Naprawczy. Twoje Prawa."
   },
 
   "nav": {
@@ -15,14 +15,14 @@
     "headline_cta": "Zajmiemy się tym legalnie.",
     "description": "Zrób zdjęcie problemu. Opowiedz o nim. List prawny powołujący się na brytyjskie prawo mieszkaniowe zostanie wysłany do Twojego właściciela w 60 sekund. W każdym języku. Dla każdego najemcy.",
     "step1_label": "Zrób zdjęcie usterki",
-    "step1_detail": "AI rozpoznaje problem i jego powagę",
+    "step1_detail": "AI klasyfikuje według 29 kategorii zagrożeń HHSRS",
     "step2_label": "Opisz w dowolnym języku",
-    "step2_detail": "Zamiana mowy na tekst w 40+ językach",
+    "step2_detail": "Zamiana mowy na tekst w 50+ językach z automatycznym tłumaczeniem",
     "step3_label": "List prawny wysłany natychmiast",
-    "step3_detail": "Powołując się na s.11 LTA 1985, HHSRS, Homes Act 2018",
+    "step3_detail": "Profesjonalny PDF ze zdjęciami, powołujący się na trzy ustawy brytyjskie",
     "step4_label": "14-dniowy termin monitorowany",
     "step4_detail": "Automatyczna eskalacja do sanepidu jeśli zignorowany",
-    "cta_report": "Zgłoś problem — £4.99 za list",
+    "cta_report": "Wyślij list naprawczy — £4.99",
     "cta_dashboard": "Panel główny",
     "evidence_note": "Twoje dowody należą do Ciebie. Pobierz w każdej chwili. Zawsze za darmo.",
     "trust_gdpr": "UK GDPR",
@@ -92,7 +92,7 @@
     "step_review_landlord_note": "Używany wyłącznie do wysłania listu. Nigdy nie udostępniany ani nie wykorzystywany w celach marketingowych.",
     "step_review_what_next": "Co się stanie dalej:",
     "step_review_what_next_detail": "Po dokonaniu płatności list prawny powołujący się na s.11 Landlord and Tenant Act 1985, Housing Health and Safety Rating System (HHSRS) oraz Homes (Fitness for Human Habitation) Act 2018 zostanie wysłany do Twojego właściciela wraz z dowodami. Ma 14 dni na odpowiedź. Jeśli tego nie zrobi, przygotujemy skargę do wydziału zdrowia środowiskowego Twojej lokalnej rady.",
-    "step_review_disclaimer": "To nie jest porada prawna. RentShield generuje korespondencję na podstawie brytyjskiego prawa mieszkaniowego. W celu uzyskania konkretnych porad prawnych skonsultuj się z prawnikiem lub Citizens Advice.",
+    "step_review_disclaimer": "To nie jest porada prawna. RepairLetter generuje korespondencję na podstawie brytyjskiego prawa mieszkaniowego. W celu uzyskania konkretnych porad prawnych skonsultuj się z prawnikiem lub Citizens Advice.",
 
     "continue": "Dalej",
     "pay_send": "Zapłać £4.99 i wyślij list",
@@ -122,7 +122,7 @@
 
   "consent": {
     "title": "Twoje Dane, Twoja Kontrola",
-    "intro": "RentShield potrzebuje Twojej zgody na przetwarzanie następujących danych w celu generowania i wysyłania listów prawnych w Twoim imieniu.",
+    "intro": "RepairLetter potrzebuje Twojej zgody na przetwarzanie następujących danych w celu generowania i wysyłania listów prawnych w Twoim imieniu.",
     "data_title": "Przetwarzanie danych osobowych",
     "data_detail": "Zbieramy Twój email (zaszyfrowany) i dane kontaktowe właściciela wyłącznie w celu wysyłania korespondencji prawnej. Nigdy nie udostępniamy Twoich danych osobom trzecim. Możesz usunąć swoje konto i wszystkie dane w dowolnym momencie.",
     "voice_title": "Nagrywanie i transkrypcja głosu",
