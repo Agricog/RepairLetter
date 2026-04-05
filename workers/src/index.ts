@@ -73,6 +73,10 @@ app.use('/api/*', async (c, next) => {
   if (exemptPaths.includes(c.req.path)) {
     return next();
   }
+  // PUT uploads use a pre-authenticated R2 key — no token needed
+  if (c.req.method === 'PUT' && c.req.path.startsWith('/api/upload/')) {
+    return next();
+  }
   return authMiddleware(c, next);
 });
 
