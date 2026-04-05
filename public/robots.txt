@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /report
+Disallow: /case/
+
+Sitemap: https://repairletter.co.uk/sitemap.xml
