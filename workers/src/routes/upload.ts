@@ -33,7 +33,7 @@ uploadRoutes.post('/upload-url', async (c) => {
   });
 
   return c.json({
-    uploadUrl: `/api/upload/${encodeURIComponent(r2Key)}`,
+    uploadUrl: `${new URL(c.req.url).origin}/api/upload/${encodeURIComponent(r2Key)}`,
     r2Key,
     expiresAt,
   });
