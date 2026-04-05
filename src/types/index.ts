@@ -12,7 +12,7 @@ export interface Case {
   id: string;
   userId: string;
   defectType: DefectType;
-  defectSeverity: number; // 1-5
+  defectSeverity: number;
   hhsrsCategory: string;
   landlordEmailEncrypted: string;
   letterSentAt: string | null;
@@ -77,6 +77,42 @@ export interface UploadUrlResponse {
   uploadUrl: string;
   r2Key: string;
   expiresAt: string;
+}
+
+// ── Consent Types ───────────────────────────────────────────
+
+export interface ConsentRecord {
+  consented: boolean;
+  dataProcessing: boolean;
+  voiceRecording: boolean;
+  photoEvidence: boolean;
+  consentedAt: string | null;
+}
+
+// ── Letter Generation Types ─────────────────────────────────
+
+export interface GeneratedLetter {
+  letterText: string;
+  citations: string[];
+}
+
+export interface TranslatedLetter {
+  translatedLetter: string;
+}
+
+// ── Evidence Pack Types ─────────────────────────────────────
+
+export interface EvidencePackResponse {
+  downloadUrl: string;
+  expiresAt: string;
+}
+
+// ── Payment Types ───────────────────────────────────────────
+
+export interface PaymentIntentResponse {
+  clientSecret: string;
+  amount: number;
+  currency: string;
 }
 
 // ── HHSRS Categories ───────────────────────────────────────
