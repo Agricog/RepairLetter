@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
-import { Shield, LayoutDashboard, AlertTriangle } from 'lucide-react';
+import { FileText, LayoutDashboard, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelector } from '../ui/LanguageSelector';
 
@@ -17,9 +17,9 @@ export function AppLayout() {
           className="flex items-center gap-2"
           aria-label={t('nav.dashboard')}
         >
-          <Shield className="h-5 w-5 text-shield-mid" />
+          <FileText className="h-5 w-5 text-shield-mid" />
           <span className="font-bold text-base tracking-tight">
-            Rent<span className="text-shield-mid">Shield</span>
+            Repair<span className="text-shield-mid">Letter</span>
           </span>
         </button>
         <div className="flex items-center gap-2">
