@@ -77,7 +77,7 @@ voiceRoutes.post('/transcribe', async (c) => {
 
   // Mark audio for deletion — processed, no longer needed
   await c.env.EVIDENCE_BUCKET.put(body.r2Key, audioBytes, {
-    httpMetadata: { contentType: 'audio/webm' },
+    httpMetadata: { contentType: object.httpMetadata?.contentType ?? 'audio/ogg' },
     customMetadata: {
       userId,
       deleteAfter: new Date(Date.now() + 3600000).toISOString(),
@@ -225,8 +225,8 @@ function buildMultipartBody(
   // Audio part — binary, no text encoding
   const audioHeader = encoder.encode(
     `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="data_file"; filename="recording.webm"\r\n` +
-    `Content-Type: audio/webm\r\n\r\n`
+    `Content-Disposition: form-data; name="data_file"; filename="recording.ogg"\r\n` +
+    `Content-Type: audio/ogg\r\n\r\n`
   );
   const audioBody = new Uint8Array(audioBytes);
   const audioEnd = encoder.encode('\r\n');
