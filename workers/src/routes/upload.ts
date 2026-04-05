@@ -44,11 +44,13 @@ uploadRoutes.post('/upload-url', async (c) => {
 
 uploadRoutes.put('/upload/:key{.+}', async (c) => {
   const r2Key = decodeURIComponent(c.req.param('key'));
-  const userId = c.get('userId') as string;
 
-  if (!r2Key.startsWith(`users/${userId}/`)) {
+  // Extract userId from the R2 key (format: users/{userId}/evidence/...)
+  const keyParts = r2Key.split('/');
+  if (keyParts.length < 3 || keyParts[0] !== 'users' || keyParts[2] !== 'evidence') {
     return c.json({ error: 'Forbidden' }, 403);
   }
+  const userId = keyParts[1];
 
   const contentType = c.req.header('Content-Type');
   if (!contentType || !ALLOWED_TYPES.includes(contentType)) {
