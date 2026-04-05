@@ -10,11 +10,12 @@ import { stripeRoutes } from './routes/stripe';
 import { usersRoutes } from './routes/users';
 import { translateRoutes } from './routes/translate';
 import { evidencePackRoutes } from './routes/evidence-pack';
+import { resendWebhookRoutes } from './routes/resend-webhook';
+import { timelineRoutes } from './routes/timeline';
 import { authMiddleware } from './middleware/auth';
 import { handleScheduled } from './cron/escalation';
 
 export interface Env {
-  // Secrets — via CF dashboard, never in code
   CLERK_SECRET_KEY: string;
   CLERK_PUBLISHABLE_KEY: string;
   CLERK_JWKS_URL: string;
@@ -30,17 +31,13 @@ export interface Env {
   CF_AI_TOKEN: string;
   VAPID_PUBLIC_KEY: string;
   VAPID_PRIVATE_KEY: string;
-
-  // Non-secret vars
   ENVIRONMENT: string;
-
-  // Bindings
   EVIDENCE_BUCKET: R2Bucket;
 }
 
 const app = new Hono<{ Bindings: Env }>();
 
-// ── Global middleware ───────────────────────────────────────
+// ── CORS ────────────────────────────────────────────────────
 
 app.use(
   '/api/*',
@@ -61,14 +58,17 @@ app.use(
   })
 );
 
-// Body size limits
+// ── Body size limit ─────────────────────────────────────────
+
 app.use('/api/*', bodyLimit({ maxSize: 15 * 1024 * 1024 }));
 
-// Auth — exempt webhook endpoints (they use their own signature verification)
+// ── Auth — exempt all webhook endpoints ─────────────────────
+
 app.use('/api/*', async (c, next) => {
   const exemptPaths = [
     '/api/stripe/webhook',
     '/api/users/webhook',
+    '/api/resend/webhook',
   ];
   if (exemptPaths.includes(c.req.path)) {
     return next();
@@ -76,7 +76,7 @@ app.use('/api/*', async (c, next) => {
   return authMiddleware(c, next);
 });
 
-// ── Health check (public) ───────────────────────────────────
+// ── Health check ────────────────────────────────────────────
 
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
@@ -89,8 +89,10 @@ app.route('/api', voiceRoutes);
 app.route('/api', letterRoutes);
 app.route('/api', translateRoutes);
 app.route('/api', evidencePackRoutes);
+app.route('/api', timelineRoutes);
 app.route('/api/stripe', stripeRoutes);
 app.route('/api/users', usersRoutes);
+app.route('/api/resend', resendWebhookRoutes);
 
 // ── 404 ─────────────────────────────────────────────────────
 
