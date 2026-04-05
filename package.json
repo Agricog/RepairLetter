@@ -4,11 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "lint": "eslint ."
-  },
+  "dev": "vite",
+  "build": "tsc -b && vite build",
+  "preview": "vite preview",
+  "lint": "eslint .",
+  "start": "node server.js"
+}
   "dependencies": {
     "@clerk/clerk-react": "^5.20.0",
     "@sentry/react": "^8.50.0",
