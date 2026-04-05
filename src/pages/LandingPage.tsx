@@ -8,10 +8,8 @@ import {
   Clock,
   ArrowRight,
   Shield,
-  CheckCircle,
   Globe,
   FileText,
-  AlertTriangle,
   Scale,
   ChevronDown,
 } from 'lucide-react';
