@@ -44,6 +44,7 @@ voiceRoutes.post('/transcribe', async (c) => {
   }
 
   const audioBytes = await object.arrayBuffer();
+  console.log('Transcribe: audio size:', audioBytes.byteLength, 'bytes');
 
   // Try Speechmatics first, fall back to Whisper
   let result: TranscriptionResult;
@@ -96,6 +97,8 @@ voiceRoutes.post('/transcribe', async (c) => {
 });
 
 // ── Speechmatics Batch API ──────────────────────────────────
+// Manual multipart/form-data construction for binary-safe uploads.
+// Workers' built-in FormData can corrupt binary data via UTF-8 coercion.
 
 const SPEECHMATICS_BASE = 'https://asr.api.speechmatics.com/v2';
 
@@ -103,31 +106,27 @@ async function transcribeWithSpeechmatics(
   audioBytes: ArrayBuffer,
   apiKey: string
 ): Promise<TranscriptionResult> {
-  const formData = new FormData();
+  const boundary = '----SpeechmaticsUpload' + crypto.randomUUID().replace(/-/g, '');
 
-  formData.append(
-    'data_file',
-    new Blob([audioBytes], { type: 'audio/webm' }),
-    'recording.webm'
-  );
-  formData.append(
-    'config',
-    JSON.stringify({
-      type: 'transcription',
-      transcription_config: {
-        language: 'auto',
-        operating_point: 'enhanced',
-      },
-    })
-  );
+  const config = JSON.stringify({
+    type: 'transcription',
+    transcription_config: {
+      language: 'auto',
+      operating_point: 'enhanced',
+    },
+  });
 
-  console.log('Speechmatics: sending audio, size:', audioBytes.byteLength, 'bytes');
+  // Build multipart body manually to preserve binary integrity
+  const body = buildMultipartBody(boundary, audioBytes, config);
 
   // Submit job
   const submitRes = await fetch(`${SPEECHMATICS_BASE}/jobs`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: formData,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+    },
+    body,
   });
 
   if (!submitRes.ok) {
@@ -138,9 +137,9 @@ async function transcribeWithSpeechmatics(
   const submitData = (await submitRes.json()) as { id: string };
   const jobId = submitData.id;
 
-  // Poll for completion (max 30 seconds)
+  // Poll for completion (max 60 seconds)
   let attempts = 0;
-  const maxAttempts = 15;
+  const maxAttempts = 30;
 
   while (attempts < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -201,6 +200,62 @@ async function transcribeWithSpeechmatics(
   }
 
   throw new Error('Speechmatics transcription timed out');
+}
+
+/**
+ * Build a multipart/form-data body manually.
+ * Ensures binary audio data is never passed through UTF-8 encoding.
+ */
+function buildMultipartBody(
+  boundary: string,
+  audioBytes: ArrayBuffer,
+  config: string
+): ArrayBuffer {
+  const encoder = new TextEncoder();
+
+  // Config part
+  const configHeader = encoder.encode(
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="config"\r\n` +
+    `Content-Type: application/json\r\n\r\n`
+  );
+  const configBody = encoder.encode(config);
+  const configEnd = encoder.encode('\r\n');
+
+  // Audio part — binary, no text encoding
+  const audioHeader = encoder.encode(
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="data_file"; filename="recording.webm"\r\n` +
+    `Content-Type: audio/webm\r\n\r\n`
+  );
+  const audioBody = new Uint8Array(audioBytes);
+  const audioEnd = encoder.encode('\r\n');
+
+  // Closing boundary
+  const closing = encoder.encode(`--${boundary}--\r\n`);
+
+  // Concatenate all parts
+  const totalLength =
+    configHeader.byteLength +
+    configBody.byteLength +
+    configEnd.byteLength +
+    audioHeader.byteLength +
+    audioBody.byteLength +
+    audioEnd.byteLength +
+    closing.byteLength;
+
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+
+  result.set(configHeader, offset); offset += configHeader.byteLength;
+  result.set(configBody, offset); offset += configBody.byteLength;
+  result.set(configEnd, offset); offset += configEnd.byteLength;
+  result.set(audioHeader, offset); offset += audioHeader.byteLength;
+  result.set(audioBody, offset); offset += audioBody.byteLength;
+  result.set(audioEnd, offset); offset += audioEnd.byteLength;
+  result.set(closing, offset);
+
+  return result.buffer;
 }
 
 // ── Whisper via CF Workers AI (fallback) ────────────────────
