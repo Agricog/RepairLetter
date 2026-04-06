@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,6 +18,10 @@ import type { DefectType, AIAnalysis, TranscriptionResult, UploadUrlResponse } f
 import { stripExif, validateImageFile } from '../lib/files';
 import { api } from '../lib/api';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+
+// ── Stripe ──────────────────────────────────────────────────
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 type Step = 'type' | 'photos' | 'voice' | 'review';
 
@@ -120,23 +126,19 @@ export function ReportPage() {
       )}
       {step === 'voice' && <VoiceStep voice={voice} />}
       {step === 'review' && (
-        <ReviewStep
-          state={state}
-          transcription={voice.transcription}
-          onEmailChange={(email) => setState((s) => ({ ...s, landlordEmail: email }))}
-        />
+        <Elements stripe={stripePromise}>
+          <ReviewStep
+            state={state}
+            transcription={voice.transcription}
+            onEmailChange={(email) => setState((s) => ({ ...s, landlordEmail: email }))}
+            canAdvance={canAdvance()}
+          />
+        </Elements>
       )}
 
-      {/* Next / Pay button */}
-      <div className="mt-8">
-        {step === 'review' ? (
-          <button
-            disabled={!canAdvance()}
-            className="w-full bg-shield hover:bg-shield-dark disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl text-sm transition-colors"
-          >
-            {t('report.pay_send')}
-          </button>
-        ) : (
+      {/* Next button — only shown for non-review steps */}
+      {step !== 'review' && (
+        <div className="mt-8">
           <button
             onClick={next}
             disabled={!canAdvance()}
@@ -145,8 +147,8 @@ export function ReportPage() {
             {t('report.continue')}
             <ArrowRight className="h-4 w-4" />
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -439,18 +441,86 @@ function VoiceStep({ voice }: { voice: ReturnType<typeof useVoiceRecorder> }) {
   );
 }
 
-// ── Step 4: Review ────────────────────────────────────────
+// ── Step 4: Review with Stripe Payment ────────────────────
 
 function ReviewStep({
   state,
   transcription,
   onEmailChange,
+  canAdvance,
 }: {
   state: ReportState;
   transcription: TranscriptionResult | null;
   onEmailChange: (email: string) => void;
+  canAdvance: boolean;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const stripe = useStripe();
+  const elements = useElements();
+
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+
+  const handlePay = async () => {
+    if (!stripe || !elements || !canAdvance) return;
+
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) return;
+
+    setPaying(true);
+    setPayError(null);
+
+    try {
+      // 1. Create case
+      const analysis = state.photos[0]?.analysis;
+      const caseRes = await api.post<{ id: string }>('/api/cases', {
+        defectType: state.defectType,
+        defectSeverity: analysis?.severity ?? 3,
+        hhsrsCategory: analysis?.hhsrsCategory ?? null,
+        landlordEmail: state.landlordEmail,
+      });
+
+      if (!caseRes.success || !caseRes.data) {
+        throw new Error(caseRes.error ?? 'Failed to create case');
+      }
+
+      const caseId = caseRes.data.id;
+
+      // 2. Create payment intent
+      const paymentRes = await api.post<{ clientSecret: string }>('/api/stripe/create-payment', {
+        caseId,
+      });
+
+      if (!paymentRes.success || !paymentRes.data) {
+        throw new Error(paymentRes.error ?? 'Failed to create payment');
+      }
+
+      // 3. Confirm payment with Stripe
+      const { error, paymentIntent } = await stripe.confirmCardPayment(
+        paymentRes.data.clientSecret,
+        {
+          payment_method: {
+            card: cardElement,
+          },
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message ?? 'Payment failed');
+      }
+
+      if (paymentIntent?.status === 'succeeded') {
+        // 4. Navigate to case detail — letter generation triggered by webhook
+        navigate(`/case/${caseId}`);
+      }
+    } catch (err) {
+      console.error('Payment failed:', err);
+      setPayError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <div>
@@ -496,12 +566,57 @@ function ReviewStep({
         <p className="text-xs text-slate-light mt-1.5">{t('report.step_review_landlord_note')}</p>
       </div>
 
+      {/* Stripe Card Element */}
+      <div className="mb-4">
+        <label className="block text-sm font-semibold text-navy mb-1.5">
+          Card details
+        </label>
+        <div className="border border-border rounded-lg px-3.5 py-3 bg-white">
+          <CardElement
+            options={{
+              style: {
+                base: {
+                  fontSize: '14px',
+                  color: '#1a2b4a',
+                  '::placeholder': { color: '#94a3b8' },
+                },
+                invalid: { color: '#ef4444' },
+              },
+              hidePostalCode: true,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Payment error */}
+      {payError && (
+        <div className="bg-danger-light border border-danger/20 rounded-lg px-4 py-2 text-sm text-danger mb-4">
+          {payError}
+        </div>
+      )}
+
       {/* Legal notice */}
-      <div className="bg-surface border border-border rounded-xl p-4 text-xs text-slate leading-relaxed">
+      <div className="bg-surface border border-border rounded-xl p-4 text-xs text-slate leading-relaxed mb-8">
         <p className="font-semibold text-navy mb-1">{t('report.step_review_what_next')}</p>
         <p>{t('report.step_review_what_next_detail')}</p>
         <p className="mt-2 text-slate-light">{t('report.step_review_disclaimer')}</p>
       </div>
+
+      {/* Pay button */}
+      <button
+        onClick={handlePay}
+        disabled={!canAdvance || paying || !stripe}
+        className="w-full bg-shield hover:bg-shield-dark disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+      >
+        {paying ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          t('report.pay_send')
+        )}
+      </button>
     </div>
   );
 }
