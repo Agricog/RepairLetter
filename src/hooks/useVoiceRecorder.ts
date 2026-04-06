@@ -133,9 +133,12 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
-    stopStream();
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     setDuration(0);
-  }, [stopStream]);
+  }, []);
 
   const processRecording = useCallback(async () => {
     const chunks = chunksRef.current;
@@ -209,8 +212,10 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       console.error('Voice processing failed:', err);
       setError(err instanceof Error ? err.message : 'Processing failed. Please try again.');
       setState('error');
+    } finally {
+      stopStream();
     }
-  }, []);
+  }, [stopStream]);
 
   const reset = useCallback(() => {
     setState('idle');
