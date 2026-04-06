@@ -44,13 +44,14 @@ voiceRoutes.post('/transcribe', async (c) => {
   }
 
   const audioBytes = await object.arrayBuffer();
-  console.log('Transcribe: audio size:', audioBytes.byteLength, 'bytes');
+  const audioContentType = object.httpMetadata?.contentType ?? 'audio/wav';
+  console.log('Transcribe: audio size:', audioBytes.byteLength, 'bytes, type:', audioContentType);
 
   // Try Speechmatics first, fall back to Whisper
   let result: TranscriptionResult;
 
   try {
-    result = await transcribeWithSpeechmatics(audioBytes, c.env.SPEECHMATICS_API_KEY);
+    result = await transcribeWithSpeechmatics(audioBytes, audioContentType, c.env.SPEECHMATICS_API_KEY);
   } catch (err) {
     console.error('Speechmatics failed, falling back to Whisper:', err);
 
@@ -77,7 +78,7 @@ voiceRoutes.post('/transcribe', async (c) => {
 
   // Mark audio for deletion — processed, no longer needed
   await c.env.EVIDENCE_BUCKET.put(body.r2Key, audioBytes, {
-    httpMetadata: { contentType: object.httpMetadata?.contentType ?? 'audio/ogg' },
+    httpMetadata: { contentType: audioContentType },
     customMetadata: {
       userId,
       deleteAfter: new Date(Date.now() + 3600000).toISOString(),
@@ -102,8 +103,24 @@ voiceRoutes.post('/transcribe', async (c) => {
 
 const SPEECHMATICS_BASE = 'https://asr.api.speechmatics.com/v2';
 
+/**
+ * Map content types to Speechmatics-compatible filename extensions.
+ * Speechmatics uses filename extension + magic bytes to identify format.
+ */
+function getAudioFilename(contentType: string): string {
+  switch (contentType) {
+    case 'audio/wav': return 'recording.wav';
+    case 'audio/ogg': return 'recording.ogg';
+    case 'audio/mp4': return 'recording.mp4';
+    case 'audio/mpeg': return 'recording.mp3';
+    case 'audio/flac': return 'recording.flac';
+    default: return 'recording.wav';
+  }
+}
+
 async function transcribeWithSpeechmatics(
   audioBytes: ArrayBuffer,
+  contentType: string,
   apiKey: string
 ): Promise<TranscriptionResult> {
   const boundary = '----SpeechmaticsUpload' + crypto.randomUUID().replace(/-/g, '');
@@ -116,8 +133,10 @@ async function transcribeWithSpeechmatics(
     },
   });
 
+  const filename = getAudioFilename(contentType);
+
   // Build multipart body manually to preserve binary integrity
-  const body = buildMultipartBody(boundary, audioBytes, config);
+  const body = buildMultipartBody(boundary, audioBytes, config, contentType, filename);
 
   // Submit job
   const submitRes = await fetch(`${SPEECHMATICS_BASE}/jobs`, {
@@ -209,7 +228,9 @@ async function transcribeWithSpeechmatics(
 function buildMultipartBody(
   boundary: string,
   audioBytes: ArrayBuffer,
-  config: string
+  config: string,
+  contentType: string,
+  filename: string
 ): ArrayBuffer {
   const encoder = new TextEncoder();
 
@@ -225,8 +246,8 @@ function buildMultipartBody(
   // Audio part — binary, no text encoding
   const audioHeader = encoder.encode(
     `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="data_file"; filename="recording.ogg"\r\n` +
-    `Content-Type: audio/ogg\r\n\r\n`
+    `Content-Disposition: form-data; name="data_file"; filename="${filename}"\r\n` +
+    `Content-Type: ${contentType}\r\n\r\n`
   );
   const audioBody = new Uint8Array(audioBytes);
   const audioEnd = encoder.encode('\r\n');
