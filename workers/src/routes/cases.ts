@@ -81,6 +81,8 @@ casesRoutes.post('/', async (c) => {
     defectSeverity: number;
     hhsrsCategory?: string;
     landlordEmail: string;
+    tenantName?: string;
+    propertyAddress?: string;
   }>();
 
   // Validate defect type against allowlist
@@ -114,17 +116,29 @@ casesRoutes.post('/', async (c) => {
     return c.json({ error: 'Invalid HHSRS category' }, 400);
   }
 
+  // Validate tenant name if provided
+  if (body.tenantName && body.tenantName.length > 200) {
+    return c.json({ error: 'Tenant name too long' }, 400);
+  }
+
+  // Validate property address if provided
+  if (body.propertyAddress && body.propertyAddress.length > 500) {
+    return c.json({ error: 'Property address too long' }, 400);
+  }
+
   const cases = await db.query(
     `INSERT INTO cases (
        user_id, defect_type, defect_severity, hhsrs_category,
-       landlord_email_encrypted
+       landlord_email_encrypted, tenant_name_encrypted, property_address_encrypted
      )
      VALUES (
        $1, $2, $3, $4,
-       encrypt_value($5, current_setting('app.encryption_key'))
+       encrypt_value($5, current_setting('app.encryption_key')),
+       CASE WHEN $6 IS NOT NULL THEN encrypt_value($6, current_setting('app.encryption_key')) END,
+       CASE WHEN $7 IS NOT NULL THEN encrypt_value($7, current_setting('app.encryption_key')) END
      )
      RETURNING id, user_id, defect_type, defect_severity, hhsrs_category, status, created_at`,
-    [userId, body.defectType, body.defectSeverity, body.hhsrsCategory ?? null, body.landlordEmail]
+    [userId, body.defectType, body.defectSeverity, body.hhsrsCategory ?? null, body.landlordEmail, body.tenantName ?? null, body.propertyAddress ?? null]
   );
 
   const newCase = cases[0] as Record<string, unknown> | undefined;
