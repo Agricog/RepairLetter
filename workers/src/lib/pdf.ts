@@ -189,7 +189,7 @@ export async function generateLetterPdf(options: LetterPdfOptions): Promise<Uint
   const paragraphs = options.letterText.split('\n').filter((p) => p.trim());
 
   for (const paragraph of paragraphs) {
-    const trimmed = paragraph.trim();
+    const trimmed = paragraph.trim().replace(/\*\*/g, '');
 
     // Detect headings (ALL CAPS lines)
     if (trimmed === trimmed.toUpperCase() && trimmed.length < 80 && trimmed.length > 5) {
