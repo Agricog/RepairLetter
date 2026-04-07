@@ -238,18 +238,6 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
         return;
       }
 
-      // Silence detection — warn user before wasting a Speechmatics call
-      let sumSquares = 0;
-      for (let i = 0; i < finalSamples.length; i++) {
-        sumSquares += finalSamples[i]! * finalSamples[i]!;
-      }
-      const rms = Math.sqrt(sumSquares / finalSamples.length);
-      if (rms < 0.005) {
-        setError('No audio detected — your microphone may be muted or too far away. Please try again.');
-        setState('error');
-        return;
-      }
-
       // Encode as 16-bit PCM WAV — this is pure math, cannot fail
       const wavBuffer = encodeWav(float32ToInt16(finalSamples), targetRate, 1);
       const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
@@ -417,3 +405,4 @@ function writeString(view: DataView, offset: number, str: string): void {
     view.setUint8(offset + i, str.charCodeAt(i));
   }
 }
+
