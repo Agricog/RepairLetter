@@ -499,6 +499,18 @@ function ReviewStep({
       }
       const caseId = caseRes.data.id;
 
+      // 1b. Link evidence photos to the case
+      for (const photo of state.photos) {
+        if (photo.r2Key) {
+          await api.post('/api/link-evidence', {
+            caseId,
+            r2Key: photo.r2Key,
+            contentType: photo.file.type,
+            aiAnalysis: photo.analysis,
+          });
+        }
+      }
+
       // 2. Create payment intent
       const paymentRes = await api.post<{ clientSecret: string }>('/api/stripe/create-payment', {
         caseId,
