@@ -21,7 +21,7 @@
     "react-dom": "^18.3.1",
     "react-helmet-async": "^2.0.5",
     "react-i18next": "^15.4.0",
-    "@speechmatics/browser-audio-input": "^1.1.1"
+    "@speechmatics/browser-audio-input": "^2.0.0"
     "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
