@@ -134,8 +134,8 @@ casesRoutes.post('/', async (c) => {
      VALUES (
        $1, $2, $3, $4,
        encrypt_value($5, current_setting('app.encryption_key')),
-       CASE WHEN $6 IS NOT NULL THEN encrypt_value($6, current_setting('app.encryption_key')) END,
-       CASE WHEN $7 IS NOT NULL THEN encrypt_value($7, current_setting('app.encryption_key')) END
+       CASE WHEN $6::text IS NOT NULL THEN encrypt_value($6::text, current_setting('app.encryption_key')) END,
+       CASE WHEN $7::text IS NOT NULL THEN encrypt_value($7::text, current_setting('app.encryption_key')) END
      )
      RETURNING id, user_id, defect_type, defect_severity, hhsrs_category, status, created_at`,
     [userId, body.defectType, body.defectSeverity, body.hhsrsCategory ?? null, body.landlordEmail, body.tenantName ?? null, body.propertyAddress ?? null]
