@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { PCMRecorder, type InputAudioEvent } from '@speechmatics/browser-audio-input';
 import { api } from '../lib/api';
 import { validateAudioFile } from '../lib/files';
 import type { TranscriptionResult, UploadUrlResponse } from '../types';
@@ -17,17 +16,18 @@ interface UseVoiceRecorderReturn {
 }
 
 /**
- * Voice recording hook using Speechmatics' official browser-audio-input library.
+ * Voice recording hook using ScriptProcessorNode for raw PCM capture.
  *
- * WHY this library instead of a custom AudioWorklet:
- * - Built and maintained by Speechmatics — the same company processing our audio
- * - Battle-tested across Chrome, Firefox, Safari, Edge, Android, iOS
- * - Handles AudioContext resuming, mic permissions, and all browser edge cases
- * - Captures raw Float32 PCM via AudioWorklet on a dedicated audio thread
- * - Zero main-thread blocking, zero format conversion issues
+ * WHY ScriptProcessorNode instead of AudioWorklet:
+ * - Two different AudioWorklet implementations (custom + Speechmatics official)
+ *   both produced intermittent silence on Chrome/macOS
+ * - ScriptProcessorNode has worked reliably for 10+ years across all browsers
+ * - For 10-30 second voice recordings, main-thread processing is fine
+ * - Gives us raw Float32 PCM directly — no encoding, no container format
+ * - Zero module loading, zero cross-thread messaging issues
  *
  * Flow:
- * 1. PCMRecorder captures raw Float32 PCM from the microphone
+ * 1. getUserMedia → AudioContext → ScriptProcessorNode captures raw PCM
  * 2. On stop: resample to 16kHz, encode as 16-bit PCM WAV
  * 3. Upload WAV to R2 (evidence storage)
  * 4. POST /api/transcribe → Speechmatics (primary) or Whisper (fallback)
@@ -35,28 +35,25 @@ interface UseVoiceRecorderReturn {
  *
  * Audio format sent to backend: 16kHz mono 16-bit PCM WAV
  */
-
-// Path to Speechmatics' AudioWorklet processor script (copied to public/js/)
-const WORKLET_URL = '/js/pcm-audio-worklet.min.js';
-
 export function useVoiceRecorder(): UseVoiceRecorderReturn {
   const [state, setState] = useState<RecorderState>('idle');
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [transcription, setTranscription] = useState<TranscriptionResult | null>(null);
 
-  const recorderRef = useRef<PCMRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const samplesRef = useRef<Float32Array[]>([]);
   const totalSamplesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef(0);
   const stoppingRef = useRef(false);
-  const audioListenerRef = useRef<((event: InputAudioEvent) => void) | null>(null);
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initialise the PCMRecorder once on mount
+  // Clean up on unmount
   useEffect(() => {
-    recorderRef.current = new PCMRecorder(WORKLET_URL);
     return () => {
       cleanup();
     };
@@ -67,13 +64,22 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    // Remove the audio listener to prevent leaks
-    if (recorderRef.current && audioListenerRef.current) {
-      recorderRef.current.removeEventListener('audio', audioListenerRef.current as EventListener);
-      audioListenerRef.current = null;
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
     }
-    if (recorderRef.current?.isRecording) {
-      recorderRef.current.stopRecording();
+    if (processorRef.current) {
+      processorRef.current.onaudioprocess = null;
+      processorRef.current.disconnect();
+      processorRef.current = null;
+    }
+    if (sourceRef.current) {
+      sourceRef.current.disconnect();
+      sourceRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close().catch(() => {});
@@ -82,12 +88,6 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
   }, []);
 
   const startRecording = useCallback(async () => {
-    if (!recorderRef.current) {
-      setError('Audio recorder not initialised. Please refresh the page.');
-      setState('error');
-      return;
-    }
-
     setError(null);
     setTranscription(null);
     samplesRef.current = [];
@@ -95,8 +95,18 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
     stoppingRef.current = false;
 
     try {
-      // Create a fresh AudioContext each session
-      // Use the browser's native sample rate — we resample to 16kHz in software
+      // Request microphone access FIRST — this is the user gesture boundary
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      streamRef.current = stream;
+
+      // Create AudioContext AFTER we have the stream
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
 
@@ -105,33 +115,32 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
         await audioContext.resume();
       }
 
-      // Listen for PCM audio events from the worklet
-      // Speechmatics' library emits 'audio' events with data on event.data
-      const onAudio = (event: InputAudioEvent) => {
+      // Connect: Microphone → ScriptProcessor
+      const source = audioContext.createMediaStreamSource(stream);
+      sourceRef.current = source;
+
+      // Buffer size 4096 is a good balance: ~85ms at 48kHz
+      // Smaller = more callbacks but lower latency
+      // Larger = fewer callbacks but higher latency
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      processor.onaudioprocess = (event: AudioProcessingEvent) => {
         if (stoppingRef.current) return;
-        const samples = event.data;
-        if (samples && samples.length > 0) {
-          samplesRef.current.push(new Float32Array(samples));
-          totalSamplesRef.current += samples.length;
-        }
+
+        const inputData = event.inputBuffer.getChannelData(0);
+
+        // Copy the samples — the input buffer is reused by the audio system
+        const copy = new Float32Array(inputData.length);
+        copy.set(inputData);
+
+        samplesRef.current.push(copy);
+        totalSamplesRef.current += copy.length;
       };
 
-      // Store reference for cleanup
-      audioListenerRef.current = onAudio;
-      recorderRef.current.addEventListener('audio', onAudio as EventListener);
-
-      // Start recording — Speechmatics' library handles:
-      // - AudioWorklet module loading
-      // - getUserMedia with optimal speech settings
-      // - Cross-browser compatibility
-      await recorderRef.current.startRecording({
-        audioContext,
-        recordingOptions: {
-          noiseSuppression: true,
-          echoCancellation: true,
-          autoGainControl: true,
-        },
-      });
+      source.connect(processor);
+      // ScriptProcessorNode requires connection to destination to work
+      processor.connect(audioContext.destination);
 
       setState('recording');
       startTimeRef.current = Date.now();
@@ -142,8 +151,8 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       }, 500);
 
       // Auto-stop after 3 minutes
-      setTimeout(() => {
-        if (recorderRef.current?.isRecording && !stoppingRef.current) {
+      autoStopRef.current = setTimeout(() => {
+        if (!stoppingRef.current) {
           stopRecording();
         }
       }, 180000);
@@ -170,17 +179,15 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
+    }
     setDuration(0);
 
-    // Stop recording via Speechmatics' library
-    if (recorderRef.current?.isRecording) {
-      recorderRef.current.stopRecording();
-    }
-
-    // Small delay to ensure final audio events arrive
-    setTimeout(() => {
-      processRecording();
-    }, 200);
+    // Process immediately — ScriptProcessorNode is synchronous,
+    // so all data is already in samplesRef
+    processRecording();
   }, []);
 
   const processRecording = useCallback(async () => {
@@ -191,14 +198,7 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
     const nativeSampleRate = audioContextRef.current?.sampleRate ?? 48000;
 
     // Clean up audio resources — we have all the samples we need
-    if (recorderRef.current && audioListenerRef.current) {
-      recorderRef.current.removeEventListener('audio', audioListenerRef.current as EventListener);
-      audioListenerRef.current = null;
-    }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
+    cleanup();
 
     if (totalLength === 0) {
       setError('No audio recorded. Please check your microphone and try again.');
@@ -290,7 +290,7 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       setError(err instanceof Error ? err.message : 'Processing failed. Please try again.');
       setState('error');
     }
-  }, []);
+  }, [cleanup]);
 
   const reset = useCallback(() => {
     cleanup();
