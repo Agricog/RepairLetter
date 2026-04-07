@@ -142,6 +142,17 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       // ScriptProcessorNode requires connection to destination to work
       processor.connect(audioContext.destination);
 
+      // Debug: log mic track state
+      const track = stream.getAudioTracks()[0];
+      console.log('[RepairLetter] Mic track:', {
+        label: track?.label,
+        enabled: track?.enabled,
+        muted: track?.muted,
+        readyState: track?.readyState,
+        contextState: audioContext.state,
+        sampleRate: audioContext.sampleRate,
+      });
+
       setState('recording');
       startTimeRef.current = Date.now();
 
@@ -237,7 +248,14 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
         sumSquares += finalSamples[i]! * finalSamples[i]!;
       }
       const rms = Math.sqrt(sumSquares / finalSamples.length);
-      if (rms < 0.005) {
+      console.log('[RepairLetter] Audio debug:', {
+        totalSamples: finalSamples.length,
+        nativeSampleRate,
+        rms: rms.toFixed(6),
+        maxSample: Math.max(...Array.from(finalSamples.slice(0, 1000)).map(Math.abs)),
+        audioContextState: audioContextRef.current?.state ?? 'closed',
+      });
+      if (rms < 0.0005) {
         setError('No audio detected — your microphone may be muted or too far away. Please try again.');
         setState('error');
         return;
