@@ -40,8 +40,8 @@ const STRUCTURED_DATA = {
       '@type': 'WebPage',
       '@id': 'https://repairletter.co.uk/#webpage',
       url: 'https://repairletter.co.uk',
-      name: 'Repair Letter to Landlord UK 2026 | Free Legal Letter Generator | RepairLetter',
-      description: 'Free UK repair letter generator for tenants. Photo your problem, describe it in any language, and a legal letter citing the Renters\' Rights Act 2025, s.11 LTA 1985 and HHSRS is sent to your landlord in 60 seconds.',
+      name: 'Repair Letter to Landlord UK 2026 | Legal Letter Generator | RepairLetter',
+      description: 'UK repair letter generator for tenants. Photo your problem, describe it in any language, and a legal letter citing the Renters\' Rights Act 2025, s.11 LTA 1985 and HHSRS is sent to your landlord in 60 seconds. £4.99 per letter.',
       isPartOf: { '@id': 'https://repairletter.co.uk/#organization' },
       speakable: {
         '@type': 'SpeakableSpecification',
@@ -154,7 +154,8 @@ export function LandingPage() {
 
         {/* Quick Answer Box — voice search optimised */}
         <p id="quick-answer" className="text-white/40 text-xs uppercase tracking-widest mb-3 font-semibold">
-          Free UK Repair Letter Generator
+          UK Repair Letter Generator — £4.99
+        </p>
         </p>
 
         <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-4 max-w-xl">
