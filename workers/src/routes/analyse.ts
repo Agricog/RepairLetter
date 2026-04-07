@@ -70,7 +70,7 @@ analyseRoutes.post('/analyse-photo', async (c) => {
     return c.json({ error: 'File is not an image' }, 400);
   }
 
-  // Call Claude Vision
+  // Call Claude Vision with temperature 0 for deterministic results
   const analysisRes = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -128,7 +128,7 @@ analyseRoutes.post('/analyse-photo', async (c) => {
   // Sanitise
   analysis.descriptionEn = analysis.descriptionEn.replace(/<[^>]*>/g, '').slice(0, 500);
 
-  // Store in evidence table with integrity hash
+  // Store in evidence table if caseId provided (for add-evidence-to-existing-case flow)
   if (body.caseId) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.caseId)) {
       return c.json({ error: 'Invalid case ID' }, 400);
@@ -136,16 +136,12 @@ analyseRoutes.post('/analyse-photo', async (c) => {
 
     const db = getDb(c.env, userId);
 
-    // Insert evidence record with SHA-256 hash
     await db.query(
       `INSERT INTO evidence (case_id, r2_key, content_type, ai_analysis, sha256_hash)
        VALUES ($1, $2, $3, $4::jsonb, $5)`,
       [body.caseId, body.r2Key, mediaType, JSON.stringify(analysis), body.sha256Hash ?? null]
     );
 
-    // ── Timeline events ─────────────────────────────────────
-
-    // Photo uploaded event
     await db.query(
       `INSERT INTO case_events (case_id, user_id, event_type, detail)
        VALUES ($1, $2, 'photo.uploaded', $3::jsonb)`,
@@ -156,7 +152,6 @@ analyseRoutes.post('/analyse-photo', async (c) => {
       })]
     );
 
-    // Photo analysed event
     await db.query(
       `INSERT INTO case_events (case_id, user_id, event_type, detail)
        VALUES ($1, $2, 'photo.analysed', $3::jsonb)`,
@@ -178,6 +173,54 @@ analyseRoutes.post('/analyse-photo', async (c) => {
   }
 
   return c.json(analysis);
+});
+
+// ── POST /api/link-evidence — link pre-uploaded photos to a case ─
+// Photos are uploaded and analysed in Step 2 before the case exists.
+// After case creation in Step 4, this endpoint inserts evidence records.
+
+analyseRoutes.post('/link-evidence', async (c) => {
+  const userId = c.get('userId') as string;
+
+  const body = await c.req.json<{
+    caseId: string;
+    r2Key: string;
+    contentType: string;
+    aiAnalysis: AnalysisResult | null;
+  }>();
+
+  // Validate case ID
+  if (!body.caseId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.caseId)) {
+    return c.json({ error: 'Invalid case ID' }, 400);
+  }
+
+  // Security: only own files
+  if (!body.r2Key.startsWith(`users/${userId}/`)) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  // Path traversal check
+  if (body.r2Key.includes('..') || body.r2Key.includes('//')) {
+    return c.json({ error: 'Invalid file path' }, 400);
+  }
+
+  const db = getDb(c.env, userId);
+
+  // Insert evidence record — ON CONFLICT prevents duplicates if called twice
+  await db.query(
+    `INSERT INTO evidence (case_id, r2_key, content_type, ai_analysis)
+     VALUES ($1, $2, $3, $4::jsonb)
+     ON CONFLICT DO NOTHING`,
+    [body.caseId, body.r2Key, body.contentType, body.aiAnalysis ? JSON.stringify(body.aiAnalysis) : null]
+  );
+
+  await writeAuditLog(db, 'evidence.linked', {
+    caseId: body.caseId,
+    r2Key: body.r2Key,
+    contentType: body.contentType,
+  });
+
+  return c.json({ success: true });
 });
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
