@@ -20,7 +20,6 @@ import { api } from '../lib/api';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 
 // ── Stripe ──────────────────────────────────────────────────
-
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 type Step = 'type' | 'photos' | 'voice' | 'review';
@@ -29,6 +28,8 @@ interface ReportState {
   defectType: DefectType | null;
   photos: PhotoEntry[];
   landlordEmail: string;
+  tenantName: string;
+  propertyAddress: string;
 }
 
 interface PhotoEntry {
@@ -52,6 +53,8 @@ export function ReportPage() {
     defectType: null,
     photos: [],
     landlordEmail: '',
+    tenantName: '',
+    propertyAddress: '',
   });
 
   const updatePhotos = useCallback(
@@ -70,7 +73,12 @@ export function ReportPage() {
       case 'voice':
         return voice.state === 'idle';
       case 'review':
-        return state.landlordEmail.includes('@') && state.landlordEmail.includes('.');
+        return (
+          state.landlordEmail.includes('@') &&
+          state.landlordEmail.includes('.') &&
+          state.tenantName.trim().length > 1 &&
+          state.propertyAddress.trim().length > 5
+        );
       default:
         return false;
     }
@@ -121,16 +129,21 @@ export function ReportPage() {
           onSelect={(dt) => setState((s) => ({ ...s, defectType: dt }))}
         />
       )}
+
       {step === 'photos' && (
         <PhotoStep photos={state.photos} updatePhotos={updatePhotos} />
       )}
+
       {step === 'voice' && <VoiceStep voice={voice} />}
+
       {step === 'review' && (
         <Elements stripe={stripePromise}>
           <ReviewStep
             state={state}
             transcription={voice.transcription}
             onEmailChange={(email) => setState((s) => ({ ...s, landlordEmail: email }))}
+            onNameChange={(name) => setState((s) => ({ ...s, tenantName: name }))}
+            onAddressChange={(address) => setState((s) => ({ ...s, propertyAddress: address }))}
             canAdvance={canAdvance()}
           />
         </Elements>
@@ -260,7 +273,6 @@ function PhotoStep({
       <p className="text-sm text-slate mb-5">
         {t('report.step_photos_description', { max: MAX_PHOTOS })}
       </p>
-
       <div className="grid grid-cols-3 gap-3 mb-4">
         {photos.map((p, i) => (
           <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100">
@@ -285,7 +297,6 @@ function PhotoStep({
             </button>
           </div>
         ))}
-
         {photos.length < MAX_PHOTOS && (
           <label className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-shield cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors">
             <Camera className="h-6 w-6 text-slate" />
@@ -301,7 +312,6 @@ function PhotoStep({
           </label>
         )}
       </div>
-
       <p className="text-xs text-slate-light">
         {t('report.step_photos_count', { current: photos.length, max: MAX_PHOTOS })}
       </p>
@@ -316,7 +326,6 @@ async function processPhoto(
 ) {
   try {
     const urlRes = await api.post<UploadUrlResponse>('/api/upload-url', { contentType: file.type });
-
     if (!urlRes.success || !urlRes.data) {
       updatePhotos((prev) => prev.map((p) => (p.id === entryId ? { ...p, uploading: false } : p)));
       return;
@@ -329,7 +338,6 @@ async function processPhoto(
     }
 
     const analysisRes = await api.post<AIAnalysis>('/api/analyse-photo', { r2Key: urlRes.data.r2Key });
-
     updatePhotos((prev) =>
       prev.map((p) =>
         p.id === entryId
@@ -447,18 +455,21 @@ function ReviewStep({
   state,
   transcription,
   onEmailChange,
+  onNameChange,
+  onAddressChange,
   canAdvance,
 }: {
   state: ReportState;
   transcription: TranscriptionResult | null;
   onEmailChange: (email: string) => void;
+  onNameChange: (name: string) => void;
+  onAddressChange: (address: string) => void;
   canAdvance: boolean;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const stripe = useStripe();
   const elements = useElements();
-
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -479,12 +490,13 @@ function ReviewStep({
         defectSeverity: analysis?.severity ?? 3,
         hhsrsCategory: analysis?.hhsrsCategory ?? null,
         landlordEmail: state.landlordEmail,
+        tenantName: state.tenantName,
+        propertyAddress: state.propertyAddress,
       });
 
       if (!caseRes.success || !caseRes.data) {
         throw new Error(caseRes.error ?? 'Failed to create case');
       }
-
       const caseId = caseRes.data.id;
 
       // 2. Create payment intent
@@ -519,6 +531,8 @@ function ReviewStep({
           hhsrsCategory: analysis?.hhsrsCategory ?? 'Unknown',
           description: analysis?.descriptionEn ?? '',
           tenantAccount: transcription?.text ?? '',
+          tenantName: state.tenantName,
+          propertyAddress: state.propertyAddress,
         });
 
         if (!letterRes.success || !letterRes.data) {
@@ -572,6 +586,37 @@ function ReviewStep({
             })}
           </p>
         )}
+      </div>
+
+      {/* Tenant name */}
+      <div className="mb-4">
+        <label htmlFor="tenant-name" className="block text-sm font-semibold text-navy mb-1.5">
+          Your full name
+        </label>
+        <input
+          id="tenant-name"
+          type="text"
+          value={state.tenantName}
+          onChange={(e) => onNameChange(e.target.value)}
+          placeholder="e.g. John Smith"
+          className="w-full border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-light focus:outline-none focus:ring-2 focus:ring-shield focus:border-shield"
+          autoComplete="name"
+        />
+      </div>
+
+      {/* Property address */}
+      <div className="mb-4">
+        <label htmlFor="property-address" className="block text-sm font-semibold text-navy mb-1.5">
+          Property address
+        </label>
+        <textarea
+          id="property-address"
+          value={state.propertyAddress}
+          onChange={(e) => onAddressChange(e.target.value)}
+          placeholder="Full address of the property with the defect"
+          rows={2}
+          className="w-full border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-light focus:outline-none focus:ring-2 focus:ring-shield focus:border-shield resize-none"
+        />
       </div>
 
       {/* Landlord email */}
