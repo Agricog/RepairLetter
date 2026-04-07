@@ -63,6 +63,21 @@ class ApiClient {
     }
   }
 
+  async getBlob(path: string): Promise<Blob | null> {
+    try {
+      const h = await this.headers();
+      delete (h as Record<string, string>)['Content-Type'];
+      const res = await fetch(`${API_URL}${path}`, {
+        method: 'GET',
+        headers: h,
+      });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  }
+
   async uploadToR2(uploadUrl: string, file: File): Promise<boolean> {
     try {
       const res = await fetch(uploadUrl, {
