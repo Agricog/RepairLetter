@@ -171,7 +171,7 @@ async function transcribeWithSpeechmatics(
     if (!statusRes.ok) continue;
 
     const statusData = (await statusRes.json()) as {
-      job: { status: string };
+      job: { status: string; errors?: Array<{ message: string; timestamp: string }> };
     };
 
     if (statusData.job.status === 'done') {
@@ -214,7 +214,8 @@ async function transcribeWithSpeechmatics(
     }
 
     if (statusData.job.status === 'rejected') {
-      throw new Error('Speechmatics rejected the job');
+      const detail = JSON.stringify(statusData);
+      throw new Error(`Speechmatics rejected the job: ${detail}`);
     }
   }
 
