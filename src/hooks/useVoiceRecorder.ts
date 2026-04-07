@@ -108,8 +108,8 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
         stopStream();
       };
 
-      // Start recording — collect data every second
-      mediaRecorder.start(1000);
+      // Start recording — single blob on stop (avoids chunk timing race)
+      mediaRecorder.start();
       setState('recording');
       startTimeRef.current = Date.now();
 
@@ -138,6 +138,8 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === 'recording') {
+      // Flush any buffered audio data before stopping
+      mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
     }
     // Don't call stopStream() here — let onstop/processRecording finish first
