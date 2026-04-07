@@ -120,8 +120,6 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       sourceRef.current = source;
 
       // Buffer size 4096 is a good balance: ~85ms at 48kHz
-      // Smaller = more callbacks but lower latency
-      // Larger = fewer callbacks but higher latency
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
@@ -141,17 +139,6 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       source.connect(processor);
       // ScriptProcessorNode requires connection to destination to work
       processor.connect(audioContext.destination);
-
-      // Debug: log mic track state
-      const track = stream.getAudioTracks()[0];
-      console.log('[RepairLetter] Mic track:', {
-        label: track?.label,
-        enabled: track?.enabled,
-        muted: track?.muted,
-        readyState: track?.readyState,
-        contextState: audioContext.state,
-        sampleRate: audioContext.sampleRate,
-      });
 
       setState('recording');
       startTimeRef.current = Date.now();
@@ -241,25 +228,6 @@ export function useVoiceRecorder(): UseVoiceRecorderReturn {
       const finalSamples = nativeSampleRate !== targetRate
         ? resample(allSamples, nativeSampleRate, targetRate)
         : allSamples;
-
-      // Silence detection — warn user before wasting a Speechmatics call
-      let sumSquares = 0;
-      for (let i = 0; i < finalSamples.length; i++) {
-        sumSquares += finalSamples[i]! * finalSamples[i]!;
-      }
-      const rms = Math.sqrt(sumSquares / finalSamples.length);
-      console.log('[RepairLetter] Audio debug:', {
-        totalSamples: finalSamples.length,
-        nativeSampleRate,
-        rms: rms.toFixed(6),
-        maxSample: Math.max(...Array.from(finalSamples.slice(0, 1000)).map(Math.abs)),
-        audioContextState: audioContextRef.current?.state ?? 'closed',
-      });
-      if (rms < 0.0005) {
-        setError('No audio detected — your microphone may be muted or too far away. Please try again.');
-        setState('error');
-        return;
-      }
 
       // Encode as 16-bit PCM WAV — pure math, cannot fail
       const wavBuffer = encodeWav(float32ToInt16(finalSamples), targetRate, 1);
@@ -410,4 +378,3 @@ function writeString(view: DataView, offset: number, str: string): void {
     view.setUint8(offset + i, str.charCodeAt(i));
   }
 }
-
