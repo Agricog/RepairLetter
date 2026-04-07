@@ -81,6 +81,7 @@ analyseRoutes.post('/analyse-photo', async (c) => {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 500,
+      temperature: 0,
       system: SYSTEM_PROMPT,
       messages: [
         {
