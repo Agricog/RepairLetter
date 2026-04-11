@@ -4,7 +4,6 @@ import { Helmet } from 'react-helmet-async';
 import {
   FileText,
   ArrowRight,
-  Scale,
   AlertTriangle,
   ChevronDown,
   Shield,
