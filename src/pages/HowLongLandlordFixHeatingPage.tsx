@@ -1,7 +1,7 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react';
 import { Helmet } from 'react-helmet-async';
-import { FileText, ArrowRight, Scale, CheckCircle, ChevronDown, Shield, AlertTriangle, Clock } from 'lucide-react';
+import { FileText, ArrowRight, ChevronDown, AlertTriangle, Clock } from 'lucide-react';
 import { useState } from 'react';
 
 const STRUCTURED_DATA = {
