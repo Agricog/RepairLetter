@@ -33,6 +33,9 @@ import { LandlordWontFixBoilerPage } from './pages/LandlordWontFixBoilerPage';
 import { LandlordWontFixDampPage } from './pages/LandlordWontFixDampPage';
 import { NoHeatingRentalPropertyPage } from './pages/NoHeatingRentalPropertyPage';
 import { LandlordNotRespondingRepairRequestPage } from './pages/LandlordNotRespondingRepairRequestPage';
+import { HowLongLandlordFixHeatingPage } from './pages/HowLongLandlordFixHeatingPage';
+import { RepairLetterTemplateUKPage } from './pages/RepairLetterTemplateUKPage';
+import { HHSRSComplaintLetterPage } from './pages/HHSRSComplaintLetterPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
@@ -123,6 +126,9 @@ export function App() {
         <Route path="/landlord-wont-fix-damp" element={<LandlordWontFixDampPage />} />
         <Route path="/no-heating-rental-property-rights" element={<NoHeatingRentalPropertyPage />} />
         <Route path="/landlord-not-responding-repair-request" element={<LandlordNotRespondingRepairRequestPage />} />
+        <Route path="/how-long-landlord-fix-heating" element={<HowLongLandlordFixHeatingPage />} />
+        <Route path="/repair-letter-template-uk" element={<RepairLetterTemplateUKPage />} />
+        <Route path="/hhsrs-complaint-letter" element={<HHSRSComplaintLetterPage />} />
 
         {/* Protected pages */}
         <Route
