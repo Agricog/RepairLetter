@@ -81,6 +81,38 @@ app.use('/api/*', async (c, next) => {
   return authMiddleware(c, next);
 });
 
+// ── Sitemap ─────────────────────────────────────────────────
+
+app.get('/sitemap.xml', (c) => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://repairletter.co.uk/</loc><lastmod>2026-04-11</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://repairletter.co.uk/letter-to-landlord-about-repairs</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://repairletter.co.uk/landlord-not-fixing-repairs</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://repairletter.co.uk/damp-and-mould-landlord-letter</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://repairletter.co.uk/landlord-repair-obligations-uk</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/how-to-report-landlord-to-council</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/environmental-health-complaint-landlord</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/section-11-landlord-tenant-act</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/renters-rights-act-2025</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://repairletter.co.uk/section-21-abolished</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://repairletter.co.uk/awaabs-law-landlord</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://repairletter.co.uk/decent-homes-standard-private-renting</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/landlord-wont-fix-boiler</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/landlord-wont-fix-damp</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/no-heating-rental-property-rights</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/landlord-not-responding-repair-request</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/how-long-landlord-fix-heating</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/repair-letter-template-uk</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/hhsrs-complaint-letter</loc><lastmod>2026-04-11</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://repairletter.co.uk/privacy</loc><lastmod>2026-04-05</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://repairletter.co.uk/terms</loc><lastmod>2026-04-05</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>
+</urlset>`;
+  return new Response(xml, {
+    headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+  });
+});
+
 // ── Health check ────────────────────────────────────────────
 
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString(), hasDb: !!c.env.DATABASE_URL, hasKey: !!c.env.DB_ENCRYPTION_KEY }));
