@@ -24,7 +24,7 @@ usersRoutes.post('/webhook', async (c) => {
     svixId,
     svixTimestamp,
     svixSignature,
-    c.env.CLERK_SECRET_KEY
+    c.env.CLERK_WEBHOOK_SECRET
   );
 
   if (!isValid) {
