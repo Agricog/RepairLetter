@@ -27,6 +27,9 @@ import { EnvironmentalHealthComplaintPage } from './pages/EnvironmentalHealthCom
 import { Section11LandlordTenantActPage } from './pages/Section11LandlordTenantActPage';
 import { RentersRightsAct2025Page } from './pages/RentersRightsAct2025Page';
 import { Section21AbolishedPage } from './pages/Section21AbolishedPage';
+import { AwaabsLawLandlordPage } from './pages/AwaabsLawLandlordPage';
+import { DecentHomesStandardPage } from './pages/DecentHomesStandardPage';
+import { LandlordWontFixBoilerPage } from './pages/LandlordWontFixBoilerPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
@@ -111,6 +114,9 @@ export function App() {
         <Route path="/section-11-landlord-tenant-act" element={<Section11LandlordTenantActPage />} />
         <Route path="/renters-rights-act-2025" element={<RentersRightsAct2025Page />} />
         <Route path="/section-21-abolished" element={<Section21AbolishedPage />} />
+        <Route path="/awaabs-law-landlord" element={<AwaabsLawLandlordPage />} />
+        <Route path="/decent-homes-standard-private-renting" element={<DecentHomesStandardPage />} />
+        <Route path="/landlord-wont-fix-boiler" element={<LandlordWontFixBoilerPage />} />
 
         {/* Protected pages */}
         <Route
