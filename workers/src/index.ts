@@ -19,6 +19,7 @@ export interface Env {
   CLERK_SECRET_KEY: string;
   CLERK_PUBLISHABLE_KEY: string;
   CLERK_JWKS_URL: string;
+  CLERK_WEBHOOK_SECRET: string;
   DATABASE_URL: string;
   DB_ENCRYPTION_KEY: string;
   ANTHROPIC_API_KEY: string;
