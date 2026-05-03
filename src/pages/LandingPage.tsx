@@ -88,16 +88,6 @@ const STRUCTURED_DATA = {
         { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://repairletter.co.uk/' },
       ],
     },
-    {
-      '@type': 'Article',
-      headline: 'Renters\' Rights Act 2025: How to Get Your Landlord to Fix Repairs',
-      author: { '@type': 'Organization', name: 'RepairLetter' },
-      publisher: { '@id': 'https://repairletter.co.uk/#organization' },
-      datePublished: '2026-04-05',
-      dateModified: '2026-04-05',
-      description: 'A comprehensive guide to tenant repair rights under the Renters\' Rights Act 2025, which comes into force on 1 May 2026. Covers s.11 LTA 1985, HHSRS, and the Homes Act 2018.',
-      mainEntityOfPage: 'https://repairletter.co.uk/',
-    },
   ],
 };
 
@@ -136,6 +126,21 @@ export function LandingPage() {
   return (
     <div className="min-h-dvh bg-navy">
       <Helmet>
+        <title>Repair Letter to Landlord UK 2026 | Legal Letter Generator | RepairLetter</title>
+        <meta name="description" content="UK repair letter generator for tenants. Photo your problem, describe it in any language, and a legal letter citing the Renters' Rights Act 2025, s.11 LTA 1985 and HHSRS is sent to your landlord in 60 seconds. £4.99 per letter." />
+        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+        <link rel="canonical" href="https://repairletter.co.uk/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://repairletter.co.uk/" />
+        <meta property="og:title" content="Repair Letter to Landlord UK 2026 | Legal Letter Generator" />
+        <meta property="og:description" content="Photo your housing problem. Speak about it in any language. A legal letter citing UK housing law is sent to your landlord in 60 seconds." />
+        <meta property="og:image" content="https://repairletter.co.uk/og-repair-letter.jpg" />
+        <meta property="og:locale" content="en_GB" />
+        <meta property="og:site_name" content="RepairLetter" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Repair Letter to Landlord UK 2026 | RepairLetter" />
+        <meta name="twitter:description" content="Photo your housing problem. Speak about it in any language. Legal letter sent in 60 seconds." />
+        <meta name="twitter:image" content="https://repairletter.co.uk/og-repair-letter.jpg" />
         <script type="application/ld+json">{JSON.stringify(STRUCTURED_DATA)}</script>
         <script type="application/ld+json">{JSON.stringify(FAQ_SCHEMA)}</script>
       </Helmet>
